@@ -1,0 +1,39 @@
+{
+  "detector": "classical_log_threshold_connected_components",
+  "normalisation": "1st to 99.5th percentile robust scaling",
+  "gaussian_smoothing": {
+    "implemented_as": "box_blur",
+    "radius_pixels": 2
+  },
+  "log_filter": {
+    "enabled": true,
+    "sigma": 1.4,
+    "response_percentile": 98.0
+  },
+  "thresholding": {
+    "method": "percentile",
+    "threshold_percentile": 91.2
+  },
+  "morphological_cleanup": {
+    "dilation_radius_pixels": 2,
+    "minimum_component_size_pixels": 8
+  },
+  "central_masking": {
+    "suppress_centre_radius_fraction": 0.08
+  },
+  "sift_or_orb_support": {
+    "enabled_when_opencv_available": true,
+    "fallback_if_missing": "empty_support_mask"
+  },
+  "false_positive_filter": {
+    "enabled_in_default_synthetic_evaluation": false,
+    "available_parameters": {
+      "minimum_area_pixels": 16,
+      "minimum_mean_brightness": 0.12,
+      "minimum_radius_fraction": 0.08,
+      "maximum_radius_fraction": 0.48,
+      "minimum_elongation": 1.08,
+      "maximum_axis_ratio": 0.92
+    }
+  }
+}

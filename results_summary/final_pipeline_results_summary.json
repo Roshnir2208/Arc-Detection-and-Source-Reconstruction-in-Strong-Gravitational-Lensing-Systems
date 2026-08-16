@@ -1,0 +1,14 @@
+{
+  "pipeline": "Exact Lenstronomy ray shooting -> RL15 -> linear RBF -> native 64x64 source grid",
+  "image_count": 1000,
+  "reconstruction_summary_csv": "results_summary/final_reconstruction_summary.csv",
+  "morphology_summary_csv": "results_summary/morphology_summary.csv",
+  "classification_summary_csv": "results_summary/final_classification_summary.csv",
+  "forward_validation_summary_csv": "results_summary/forward_validation_summary.csv",
+  "strongest_error_predictor_by_abs_spearman": {
+    "factor": "source_R_sersic",
+    "pearson_with_ssim": 0.537327319084449,
+    "spearman_with_ssim": 0.5410743850743851,
+    "count": 1000
+  }
+}

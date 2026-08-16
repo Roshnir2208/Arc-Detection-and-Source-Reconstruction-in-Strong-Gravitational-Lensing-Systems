@@ -1,0 +1,2 @@
+count,mean_precision,min_precision,max_precision,mean_recall,min_recall,max_recall,mean_f1,min_f1,max_f1,mean_iou,min_iou,max_iou,total_tp,total_fp,total_fn,total_tn,overall_precision,overall_recall,overall_f1,overall_iou,overall_accuracy
+1000,0.943281,0.744898,1.0,0.920687,0.77382,0.979554,0.930458,0.789474,0.970149,0.871156,0.652174,0.942029,1623824.0,93533.0,145912.0,14520731.0,0.945537,0.917552,0.931334,0.871492,0.985385

@@ -1,0 +1,36 @@
+{
+  "dataset": "Galaxy Zoo labelled source images",
+  "classes": ["elliptical", "spiral"],
+  "sample_count": 90,
+  "validation_protocol": "5-fold source-level stratified cross-validation",
+  "leakage_prevention": "true and reconstructed versions of the same galaxy remain in the same fold",
+  "svm": {
+    "feature_set": [
+      "concentration",
+      "asymmetry",
+      "gini",
+      "m20",
+      "ellipticity",
+      "effective_radius",
+      "axis_ratio",
+      "Hu moments"
+    ],
+    "pipeline": "StandardScaler -> SVC",
+    "kernel": "rbf",
+    "class_weight": "balanced",
+    "probability": true
+  },
+  "cnn": {
+    "architecture": "pretrained torchvision MobileNetV2/ResNet-style compact image classifier depending on runtime availability",
+    "input": "grayscale source converted to 3 channels",
+    "augmentation": ["rotations", "flips", "small translations"],
+    "loss": "class-weighted cross entropy",
+    "early_stopping": true
+  },
+  "ensemble": {
+    "method": "confidence-aware agreement",
+    "strong_agreement": "SVM and CNN agree and both confidence >= 0.60",
+    "weak_agreement": "SVM and CNN agree but one confidence < 0.60",
+    "disagreement": "output uncertain rather than forcing a class"
+  }
+}

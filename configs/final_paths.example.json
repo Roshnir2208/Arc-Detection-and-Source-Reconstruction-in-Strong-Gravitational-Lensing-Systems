@@ -1,0 +1,6 @@
+{
+  "synthetic_dataset": "data/lenstronomy_recon_1000",
+  "galaxy_zoo_sources": "data/galaxy_zoo_sources",
+  "real_lens_images": "data/real_lens_images",
+  "outputs": "outputs"
+}

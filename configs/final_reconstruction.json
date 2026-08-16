@@ -1,0 +1,30 @@
+{
+  "validated_mode": "known_parameter_oracle",
+  "ray_tracing": {
+    "oracle": "exact Lenstronomy SIE ray-shooting",
+    "automatic": "ellipse-derived geometric approximation"
+  },
+  "valid_pixels": "detected arc pixels",
+  "preprocessing": {
+    "method": "Richardson-Lucy deconvolution",
+    "iterations": 15
+  },
+  "source_grid": {
+    "native_resolution": [64, 64],
+    "auto_extent": true,
+    "auto_margin_fraction": 0.12,
+    "auto_bound_low_percentile": 5.0,
+    "auto_bound_high_percentile": 95.0,
+    "minimum_auto_extent_arcsec": 0.05
+  },
+  "interpolation": {
+    "method": "linear radial basis function interpolation",
+    "rbf_kernel": "linear",
+    "rbf_neighbors": 48,
+    "rbf_smoothing": 0.0,
+    "maximum_grid_distance_pixels": 3.0
+  },
+  "output_normalisation": "99.5 percentile positive-source scaling",
+  "regularisation": "none in final selected method",
+  "quantitative_validation": "synthetic data only"
+}
