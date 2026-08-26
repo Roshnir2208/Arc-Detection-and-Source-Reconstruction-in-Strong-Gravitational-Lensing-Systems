@@ -1,6 +1,6 @@
 # Experiments
 
-This folder contains non-final or supporting experiment scripts retained only for dissertation reproducibility.
+This folder contains non-final or supporting experiment scripts retained only for project reproducibility.
 
 The final pipeline entry points are in `scripts/`.
 
