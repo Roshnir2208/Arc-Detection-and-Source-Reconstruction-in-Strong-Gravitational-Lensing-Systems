@@ -6,5 +6,5 @@ if not exist ".venv\Scripts\python.exe" (
   pause
   exit /b 1
 )
-".venv\Scripts\python.exe" demo\run_live_demo.py --sample real
+".venv\Scripts\python.exe" demo\run_live_demo.py --sample synthetic --example lens_00695 --fallback
 pause

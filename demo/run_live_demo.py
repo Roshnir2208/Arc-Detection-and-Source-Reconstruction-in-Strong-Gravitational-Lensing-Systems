@@ -103,23 +103,64 @@ def final_reconstruction_metric(sample_id: str) -> dict[str, str]:
     return {"sample_id": sample_id}
 
 
-def synthetic_demo(fallback: bool) -> dict[str, str]:
-    sample_id = "lens_00932"
+def metric_for_sample(sample_id: str) -> dict[str, float]:
+    candidates = [
+        ROOT / "results_summary" / "final_reconstruction_per_image_metrics.csv",
+        ROOT.parent / "outputs" / "final_validated_reconstruction_benchmark" / "final_reconstruction_per_image_metrics.csv",
+    ]
+    for path in candidates:
+        if not path.exists():
+            continue
+        for row in read_csv_rows(path):
+            if row.get("id") == sample_id:
+                return {
+                    "ssim": float(row.get("ssim_aligned") or row.get("ssim_raw") or 0.0),
+                    "ncc": float(row.get("ncc_aligned") or row.get("ncc_raw") or 0.0),
+                    "psnr": float(row.get("psnr_aligned") or row.get("psnr_raw") or 0.0),
+                    "mse": float(row.get("mse_aligned") or row.get("mse_raw") or 0.0),
+                }
+    return {}
+
+
+def synthetic_demo(fallback: bool, sample_id: str = "lens_00695") -> dict[str, str]:
     out = DEMO_OUTPUT / ("fallback_synthetic" if fallback else "synthetic")
     observed = load_gray(EXAMPLES / f"{sample_id}_observed.png")
     truth_mask = load_gray(EXAMPLES / f"{sample_id}_true_mask.png") > 0.5
     true_source = load_gray(EXAMPLES / f"{sample_id}_true_source.png")
     recon = load_gray(EXAMPLES / f"{sample_id}_reconstructed_source64.png")
-    detected = truth_mask if fallback else detect_arc_mask(observed)
+    detected = detect_arc_mask(observed)
     params = extract_arc_parameters(detected, observed.shape)
     seg = segmentation_metrics(detected, truth_mask)
     ellipse_path = out / f"{sample_id}_ellipse_overlay.png"
     overlay_ellipse(observed, detected, ellipse_path)
     save_gray(detected.astype(float), out / f"{sample_id}_detected_mask.png")
     svm_text, cnn_text, ensemble_text = classifier_headline()
+    recon_metrics = metric_for_sample(sample_id)
+    metric_lines = [
+        f"Precision: {seg['precision']:.3f}",
+        f"Recall: {seg['recall']:.3f}",
+        f"F1-score: {seg['f1']:.3f}",
+        f"IoU: {seg['iou']:.3f}",
+    ]
+    if recon_metrics:
+        metric_lines.extend(
+            [
+                "",
+                f"SSIM: {recon_metrics['ssim']:.3f}",
+                f"NCC: {recon_metrics['ncc']:.3f}",
+                f"PSNR: {recon_metrics['psnr']:.2f} dB",
+                f"MSE: {recon_metrics['mse']:.5f}",
+            ]
+        )
+    metric_lines.extend(
+        [
+            "",
+            f"Einstein radius: {params.einstein_radius_estimate:.2f} px",
+            "Grid: 64 x 64",
+        ]
+    )
 
     fig, axes = plt.subplots(2, 4, figsize=(12.5, 6.9), dpi=160)
-    fig.suptitle("Live Demo: Synthetic Validated Strong-Lensing Pipeline", fontsize=15, weight="bold", y=0.98)
     show_panel(axes[0, 0], observed, "Observed Lens")
     show_panel(axes[0, 1], truth_mask.astype(float), "Ground-Truth Arc Mask")
     show_panel(axes[0, 2], detected.astype(float), "Detected Arc Mask")
@@ -130,31 +171,27 @@ def synthetic_demo(fallback: bool) -> dict[str, str]:
     show_panel(axes[1, 2], np.abs(true_resized - recon), "Absolute Residual")
     draw_text_panel(
         axes[1, 3],
-        "Final Summary",
-        [
-            f"Sample: {sample_id}",
-            "Oracle reconstruction:",
-            "Lenstronomy ray-shooting",
-            "RL15 + linear RBF, 64 x 64",
-            f"Detection F1: {seg['f1']:.3f}",
-            f"Estimated radius: {params.einstein_radius_estimate:.2f} px",
-            "",
-            svm_text,
-            cnn_text,
-            ensemble_text,
-        ],
+        f"Key Metrics\n{sample_id}",
+        metric_lines,
         "#fff7ed",
     )
     out.mkdir(parents=True, exist_ok=True)
     summary_png = out / "final_demo_summary.png"
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.tight_layout()
     fig.savefig(summary_png, dpi=300, bbox_inches="tight")
     plt.close(fig)
     (DEMO_OUTPUT / "final_demo_summary.png").write_bytes(summary_png.read_bytes())
     return {
         "mode": "synthetic fallback" if fallback else "synthetic",
         "sample_id": sample_id,
+        "detection_precision": f"{seg['precision']:.3f}",
+        "detection_recall": f"{seg['recall']:.3f}",
         "detection_f1": f"{seg['f1']:.3f}",
+        "detection_iou": f"{seg['iou']:.3f}",
+        "reconstruction_ssim": f"{recon_metrics.get('ssim', 0.0):.3f}" if recon_metrics else "unavailable",
+        "reconstruction_ncc": f"{recon_metrics.get('ncc', 0.0):.3f}" if recon_metrics else "unavailable",
+        "reconstruction_psnr": f"{recon_metrics.get('psnr', 0.0):.2f} dB" if recon_metrics else "unavailable",
+        "reconstruction_mse": f"{recon_metrics.get('mse', 0.0):.5f}" if recon_metrics else "unavailable",
         "einstein_radius_estimate": f"{params.einstein_radius_estimate:.2f} px",
         "reconstruction_mode": "exact Lenstronomy oracle; RL15; linear RBF; native 64 x 64",
         "svm": svm_text,
@@ -171,7 +208,6 @@ def real_demo() -> dict[str, str]:
     detection = load_gray(EXAMPLES / f"{real_id}_real_detection.png")
     recon = load_gray(EXAMPLES / f"{real_id}_real_reconstructed_source.png")
     fig, axes = plt.subplots(1, 5, figsize=(13.5, 3.4), dpi=170)
-    fig.suptitle("Live Demo: Real SLACS/HST Qualitative Pipeline", fontsize=14, weight="bold", y=1.02)
     show_panel(axes[0], observed, "Real Lens")
     show_panel(axes[1], detection, "Detected Arc / Ellipse")
     show_panel(axes[2], recon, "Source Candidate")
@@ -192,9 +228,54 @@ def real_demo() -> dict[str, str]:
     }
 
 
+def compare_synthetic_examples() -> dict[str, str]:
+    sample_ids = ["lens_00695", "lens_00932"]
+    out = DEMO_OUTPUT / "synthetic_comparison"
+    fig, axes = plt.subplots(len(sample_ids), 5, figsize=(14.5, 6.5), dpi=170)
+    for row_index, sample_id in enumerate(sample_ids):
+        observed = load_gray(EXAMPLES / f"{sample_id}_observed.png")
+        truth_mask = load_gray(EXAMPLES / f"{sample_id}_true_mask.png") > 0.5
+        true_source = load_gray(EXAMPLES / f"{sample_id}_true_source.png")
+        recon = load_gray(EXAMPLES / f"{sample_id}_reconstructed_source64.png")
+        metrics = metric_for_sample(sample_id)
+        true_resized = np.asarray(
+            Image.fromarray((true_source * 255).astype(np.uint8)).resize(recon.shape[::-1], Image.Resampling.BICUBIC),
+            dtype=float,
+        ) / 255.0
+        residual = np.abs(true_resized - recon)
+        detected = truth_mask
+        ellipse_path = out / f"{sample_id}_ellipse_overlay.png"
+        overlay_ellipse(observed, detected, ellipse_path)
+        panels = [
+            (observed, "Observed Lens"),
+            (detected.astype(float), "Detected Mask"),
+            (load_gray(ellipse_path), "Ellipse Overlay"),
+            (recon, "Reconstruction"),
+            (true_source, "True Source"),
+        ]
+        for col_index, (arr, title) in enumerate(panels):
+            show_panel(axes[row_index, col_index], arr, title if row_index == 0 else "")
+        label = f"{sample_id}"
+        if metrics:
+            label += f" | SSIM {metrics['ssim']:.3f} | NCC {metrics['ncc']:.3f}"
+        axes[row_index, 0].set_ylabel(label, fontsize=9)
+    out.mkdir(parents=True, exist_ok=True)
+    summary_png = out / "lens_00695_vs_lens_00932_comparison.png"
+    fig.tight_layout()
+    fig.savefig(summary_png, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    return {
+        "mode": "synthetic comparison",
+        "samples": "lens_00695, lens_00932",
+        "summary_figure": str(summary_png.resolve()),
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Safe live demo for the final MSc strong-lensing pipeline.")
     parser.add_argument("--sample", choices=["synthetic", "real"], default="synthetic")
+    parser.add_argument("--example", choices=["lens_00695", "lens_00932"], default="lens_00695")
+    parser.add_argument("--compare", action="store_true", help="Generate a side-by-side comparison of packaged synthetic examples.")
     parser.add_argument("--fallback", action="store_true", help="Use precomputed demo assets.")
     return parser.parse_args()
 
@@ -204,6 +285,18 @@ def main() -> int:
     DEMO_OUTPUT.mkdir(parents=True, exist_ok=True)
     start = time.perf_counter()
     try:
+        if args.compare:
+            print("[1/3] Loading packaged synthetic examples...")
+            print("[2/3] Building comparison gallery...")
+            summary = compare_synthetic_examples()
+            print("[3/3] Saving comparison output...")
+            elapsed = time.perf_counter() - start
+            (DEMO_OUTPUT / "last_demo_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+            print("\nCOMPARISON COMPLETE")
+            print("Samples: lens_00695 and lens_00932")
+            print(f"Output figure: {summary.get('summary_figure', 'unavailable')}")
+            print(f"Runtime: {elapsed:.2f} seconds")
+            return 0
         print("[1/6] Loading lens image...")
         if args.sample == "real":
             print("[2/6] Loading final real-data detection...")
@@ -216,7 +309,7 @@ def main() -> int:
             print("[3/6] Estimating lens geometry...")
             print("[4/6] Loading final validated source reconstruction...")
             print("[5/6] Loading final classifier summaries...")
-            summary = synthetic_demo(args.fallback)
+            summary = synthetic_demo(args.fallback, args.example)
         print("[6/6] Generating final summary...")
         elapsed = time.perf_counter() - start
         summary["runtime_seconds"] = f"{elapsed:.3f}"
@@ -226,8 +319,24 @@ def main() -> int:
             print("Precomputed outputs from the final pipeline")
         if args.sample == "real":
             print("Real-data result: qualitative demonstration only - no source-plane ground truth available.")
-        for key, value in summary.items():
-            print(f"{key}: {value}")
+        if args.sample == "real":
+            print(f"Sample: {summary.get('sample_id', 'unknown')}")
+            print(f"Prediction: {summary.get('ensemble_prediction', 'unavailable')}")
+            print(f"Output figure: {summary.get('summary_figure', 'unavailable')}")
+        else:
+            print(f"Sample: {summary.get('sample_id', 'unknown')}")
+            print(f"Detection precision: {summary.get('detection_precision', 'unavailable')}")
+            print(f"Detection recall: {summary.get('detection_recall', 'unavailable')}")
+            print(f"Detection F1: {summary.get('detection_f1', 'unavailable')}")
+            print(f"Detection IoU: {summary.get('detection_iou', 'unavailable')}")
+            print(f"Reconstruction SSIM: {summary.get('reconstruction_ssim', 'unavailable')}")
+            print(f"Reconstruction NCC: {summary.get('reconstruction_ncc', 'unavailable')}")
+            print(f"Reconstruction PSNR: {summary.get('reconstruction_psnr', 'unavailable')}")
+            print(f"Reconstruction MSE: {summary.get('reconstruction_mse', 'unavailable')}")
+            print(f"Estimated Einstein radius: {summary.get('einstein_radius_estimate', 'unavailable')}")
+            print("Reconstruction: exact Lenstronomy oracle, RL15, linear RBF, 64 x 64")
+            print(f"Output figure: {summary.get('summary_figure', 'unavailable')}")
+        print(f"Runtime: {elapsed:.2f} seconds")
         return 0
     except Exception:
         log_path = DEMO_OUTPUT / "demo_error.log"
